@@ -40,25 +40,20 @@ async function run() {
     // })
 
     app.get('/cars', async (req, res) => {
-        const { search, category, brandName, minPrice, maxPrice, sort, priceRange } = req.query;
+        const { search, category, brandName, priceRange, sort, page = 1, limit = 10 } = req.query;
     
-        let filter = {};
-        
-        if (brandName) {
-            filter.brandName = brandName;
-        }
-        
-        if (category) {
-            filter.category = category;
-        }
+        const skip = (page - 1) * limit;
+        const filter = {};
+        const sortOption = {};
     
+        if (brandName) filter.brandName = brandName;
+        if (category) filter.category = category;
         if (search) {
             filter.$or = [
                 { productName: { $regex: search, $options: 'i' } },
                 { description: { $regex: search, $options: 'i' } }
             ];
         }
-    
         if (priceRange) {
             filter.price = {};
             if (priceRange === 'below-50000') {
@@ -70,28 +65,29 @@ async function run() {
                 filter.price.$gte = 70000;
             }
         }
-    
-    
-        let sortOption = {};
         if (sort) {
-            if (sort === 'price-low-high') {
-                sortOption.price = 1; // ascending
-            } else if (sort === 'price-high-low') {
-                sortOption.price = -1; // descending
-            } else if (sort === 'newest-first') {
-                sortOption.releaseDate = -1; // newest first
-            } else if (sort === 'oldest-first') {
-                sortOption.releaseDate = 1; // oldest first
-            }
+            if (sort === 'price-low-high') sortOption.price = 1;
+            else if (sort === 'price-high-low') sortOption.price = -1;
+            else if (sort === 'newest-first') sortOption.releaseDate = -1;
+            else if (sort === 'oldest-first') sortOption.releaseDate = 1;
         }
     
         try {
-            const result = await carsCollection.find(filter).sort(sortOption).toArray();
-            res.send(result);
+            const [totalItems, cars] = await Promise.all([
+                carsCollection.countDocuments(filter),
+                carsCollection.find(filter).sort(sortOption).skip(skip).limit(parseInt(limit)).toArray()
+            ]);
+    
+            res.send({
+                cars,
+                totalPages: Math.ceil(totalItems / limit),
+                currentPage: parseInt(page)
+            });
         } catch (error) {
             res.status(500).send({ error: 'Failed to fetch cars' });
         }
     });
+    
     
 
     // Send a ping to confirm a successful connection
