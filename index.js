@@ -34,10 +34,65 @@ async function run() {
 
     const carsCollection = client.db("carlog").collection("cars");
 
-    app.get('/cars', async (req, res)=> {
-        const result = await carsCollection.find().toArray()
-        res.send(result)
-    })
+    // app.get('/cars', async (req, res)=> {
+    //     const result = await carsCollection.find().toArray()
+    //     res.send(result)
+    // })
+
+    app.get('/cars', async (req, res) => {
+        const { search, category, brandName, minPrice, maxPrice, sort, priceRange } = req.query;
+    
+        let filter = {};
+        
+        if (brandName) {
+            filter.brandName = brandName;
+        }
+        
+        if (category) {
+            filter.category = category;
+        }
+    
+        if (search) {
+            filter.$or = [
+                { productName: { $regex: search, $options: 'i' } },
+                { description: { $regex: search, $options: 'i' } }
+            ];
+        }
+    
+        if (priceRange) {
+            filter.price = {};
+            if (priceRange === 'below-50000') {
+                filter.price.$lte = 50000;
+            } else if (priceRange === '50000-70000') {
+                filter.price.$gte = 50000;
+                filter.price.$lte = 70000;
+            } else if (priceRange === 'above-70000') {
+                filter.price.$gte = 70000;
+            }
+        }
+    
+    
+        let sortOption = {};
+        if (sort) {
+            if (sort === 'price-low-high') {
+                sortOption.price = 1; // ascending
+            } else if (sort === 'price-high-low') {
+                sortOption.price = -1; // descending
+            } else if (sort === 'newest-first') {
+                sortOption.releaseDate = -1; // newest first
+            } else if (sort === 'oldest-first') {
+                sortOption.releaseDate = 1; // oldest first
+            }
+        }
+    
+        try {
+            const result = await carsCollection.find(filter).sort(sortOption).toArray();
+            res.send(result);
+        } catch (error) {
+            res.status(500).send({ error: 'Failed to fetch cars' });
+        }
+    });
+    
 
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
