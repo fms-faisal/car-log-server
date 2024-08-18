@@ -29,14 +29,7 @@ const client = new MongoClient(uri, {
 
 async function run() {
   try {
-
-
     const carsCollection = client.db("carlog").collection("cars");
-
-    // app.get('/cars', async (req, res)=> {
-    //     const result = await carsCollection.find().toArray()
-    //     res.send(result)
-    // })
 
     app.get("/cars", async (req, res) => {
       const { search, category, brandName, priceRange, sort, page = 1, limit = 10 } = req.query;
@@ -84,7 +77,6 @@ async function run() {
 
       try {
         // Execute the queries in parallel to get total item count and paginated results
-        
         const [totalItems, cars] = await Promise.all([
             carsCollection.countDocuments(filter), // Get the total number of documents that match the filter
             carsCollection.find(filter)            // Find the documents that match the filter
